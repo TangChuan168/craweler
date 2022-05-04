@@ -11,12 +11,22 @@ using System.Collections.ObjectModel;
 using OpenQA.Selenium.Support.UI;
 using SeleniumExtras.WaitHelpers;
 using ConsoleSpider.Domain.Models;
+using ConsoleSpider.Domain.Services;
 
 namespace Guru99Demo
 {
-    class CGuru99Demo
+    public class CGuru99Demo
     {
+
         IWebDriver driver;
+        CateService _DataService;
+
+        public CGuru99Demo(
+          CateService DataService
+         )
+        {
+            _DataService = DataService;
+        }
 
         [SetUp]
         public void startBrowser()
@@ -35,35 +45,43 @@ namespace Guru99Demo
             wait.Until(ExpectedConditions.ElementIsVisible(By.XPath("/html/body/tm-root/div[1]/main/div/tm-marketplace-landing-page/div[2]/tm-marketplace-cat-splat/nav/ul/li/a")));
             ReadOnlyCollection<IWebElement> elements45 = driver.FindElements(By.XPath("/html/body/tm-root/div[1]/main/div/tm-marketplace-landing-page/div[2]/tm-marketplace-cat-splat/nav/ul/li/a"));
 
-            looper2(elements45);
+            Looper2(elements45);
             
         }
 
-        public void looper2(ReadOnlyCollection<IWebElement> elements )
+        public async void Looper2(ReadOnlyCollection<IWebElement> elements,string fatherNode = "origin" )
         {       
 
-                List<string> urls = new List<string>();
+                List<Categories> CateList = new List<Categories>();
                 foreach (var node in elements)
-                {
-                    //get url from each node;
-                    var url = node.GetAttribute("href");
+                    {
+                        //get url from each node;
 
-                    //push url to urls list
-                    urls.Add(url);
-                    //dataBase.save(cate);
-                    Console.WriteLine(node.Text);
+                        var parentId = fatherNode == "origin"? "origin" : fatherNode;
+                        var newCate = new Categories()
+                        {
+                            Url = node.GetAttribute("href"),
+                            tagName = node.Text,
+                            parentId = parentId,
+                            namePassToChild = node.Text
+                        };
 
-                    Console.WriteLine("--------------------------------------");
-                };
+                        //push data to list for children node
+                        CateList.Add(newCate);
 
-                foreach (var url2 in urls)
+                        //push data to database
+                       await _DataService.AddCategory(newCate);
+
+                    };
+
+                foreach (var url2 in CateList)
                 {
                 
-                    driver.Navigate().GoToUrl(url2);
-                    ReadOnlyCollection<IWebElement> childNodes = GetNodes(url2);
+                    driver.Navigate().GoToUrl(url2.Url);
+                    ReadOnlyCollection<IWebElement> childNodes = GetNodes(url2.Url);
                 if (childNodes != null)
                     {
-                        looper2(childNodes);
+                        Looper2(childNodes,url2.namePassToChild);
                     }                
             };
 
